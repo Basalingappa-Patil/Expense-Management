@@ -69,7 +69,32 @@ func GetSettlements(c *gin.Context) {
 		splitCursor.Close(ctx)
 	}
 
-	// 2. Pass balances to Settlement Service (Greedy Algorithm)
+	// 2. Fetch Verified Payments and Adjust Balances
+	paymentCollection := config.GetCollection("payments")
+	paymentCursor, err := paymentCollection.Find(ctx, bson.M{"groupId": groupID, "status": "verified"})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch payments"})
+		return
+	}
+	defer paymentCursor.Close(ctx)
+
+	var payments []models.Payment
+	if err = paymentCursor.All(ctx, &payments); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode payments"})
+		return
+	}
+
+	for _, payment := range payments {
+		payerIDHex := payment.PayerID.Hex()
+		receiverIDHex := payment.ReceiverID.Hex()
+
+		// Payer paid money, so their balance goes up (they owe less or are owed more)
+		balances[payerIDHex] += payment.Amount
+		// Receiver got money, so their balance goes down (they are owed less)
+		balances[receiverIDHex] -= payment.Amount
+	}
+
+	// 3. Pass balances to Settlement Service (Greedy Algorithm)
 	transactions := services.CalculateOptimalSettlements(balances)
 
 	c.JSON(http.StatusOK, gin.H{

@@ -92,7 +92,7 @@ func AddMember(c *gin.Context) {
 
 	// Add user to Group's members array
 	groupCollection := config.GetCollection("groups")
-	
+
 	// Check if already a member
 	var group models.Group
 	err = groupCollection.FindOne(ctx, bson.M{"_id": groupID}).Decode(&group)
@@ -100,7 +100,7 @@ func AddMember(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
 		return
 	}
-	
+
 	for _, memberID := range group.Members {
 		if memberID == userToAdd.ID {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "User is already a member of this group"})
@@ -149,7 +149,33 @@ func GetGroupDetails(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, group)
+	// Populate Members
+	userCollection := config.GetCollection("users")
+	var populatedMembers []models.User
+
+	if len(group.Members) > 0 {
+		cursor, err := userCollection.Find(ctx, bson.M{"_id": bson.M{"$in": group.Members}})
+		if err == nil {
+			cursor.All(ctx, &populatedMembers)
+		}
+		cursor.Close(ctx)
+	}
+
+	// Remove passwords from response
+	for i := range populatedMembers {
+		populatedMembers[i].Password = ""
+	}
+
+	// Return a custom map so we can inject populated members
+	response := gin.H{
+		"id":        group.ID,
+		"name":      group.Name,
+		"createdBy": group.CreatedBy,
+		"members":   populatedMembers,
+		"createdAt": group.CreatedAt,
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 func GetUserGroups(c *gin.Context) {
@@ -169,7 +195,7 @@ func GetUserGroups(c *gin.Context) {
 	defer cancel()
 
 	groupCollection := config.GetCollection("groups")
-	
+
 	// Find all groups where the user is in the Members array
 	cursor, err := groupCollection.Find(ctx, bson.M{"members": userID})
 	if err != nil {

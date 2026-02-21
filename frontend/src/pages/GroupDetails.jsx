@@ -27,6 +27,7 @@ const GroupDetails = () => {
     const [group, setGroup] = useState(null);
     const [settlements, setSettlements] = useState([]);
     const [expenses, setExpenses] = useState([]);
+    const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const [showExpenseModal, setShowExpenseModal] = useState(false);
@@ -37,14 +38,16 @@ const GroupDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [groupRes, settlementRes, expenseRes] = await Promise.all([
+                const [groupRes, settlementRes, expenseRes, paymentRes] = await Promise.all([
                     api.get(`/groups/${id}`),
                     api.get(`/settlements/${id}`),
-                    api.get(`/expenses/${id}`)
+                    api.get(`/expenses/${id}`),
+                    api.get(`/payments/${id}`)
                 ]);
                 setGroup(groupRes.data);
                 setSettlements(settlementRes.data.transactions || []);
                 setExpenses(expenseRes.data || []);
+                setPayments(paymentRes.data || []);
             } catch (err) {
                 console.error("Failed to fetch group details", err);
             } finally {
@@ -79,6 +82,33 @@ const GroupDetails = () => {
         }
     };
 
+    const getMemberName = (memberId) => {
+        if (!memberId) return "Unknown User";
+        if (!group || !group.members) return `User ${String(memberId).substring(0, 6)}`;
+        const member = group.members.find(m => m.id === memberId);
+        if (memberId === user?.id) return "You";
+        return member ? member.name : `User ${String(memberId).substring(0, 6)}`;
+    };
+
+    const handleMarkAsPaid = async (receiverId, amount) => {
+        if (!window.confirm(`Mark ₹${amount.toFixed(2)} as paid?`)) return;
+        try {
+            await api.post('/payments', { groupId: id, receiverId, amount });
+            window.location.reload();
+        } catch (err) {
+            alert("Failed to initiate payment");
+        }
+    };
+
+    const handleVerifyPayment = async (paymentId) => {
+        try {
+            await api.post('/payments/verify', { paymentId });
+            window.location.reload();
+        } catch (err) {
+            alert("Failed to verify payment");
+        }
+    };
+
     if (loading) {
         return (
             <PageTransition>
@@ -105,6 +135,26 @@ const GroupDetails = () => {
 
                 <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
+                    {/* Group Members */}
+                    <div className="mb-6">
+                        <h2 className="text-base font-bold flex items-center text-slate-900 mb-3">
+                            <span className="bg-indigo-100 p-1.5 rounded-lg mr-2">
+                                <UserPlus className="h-4 w-4 text-indigo-600" />
+                            </span>
+                            Group Members
+                        </h2>
+                        <div className="flex flex-wrap gap-2">
+                            {group?.members?.map((m) => (
+                                <span key={m.id} className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 shadow-sm flex items-center">
+                                    <div className="h-5 w-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center mr-2 text-xs font-bold">
+                                        {(m.id === user?.id ? "Y" : m.name.charAt(0).toUpperCase())}
+                                    </div>
+                                    {m.id === user?.id ? "You" : m.name}
+                                </span>
+                            ))}
+                        </div>
+                    </div>
+
                     {/* Actions */}
                     <div className="grid grid-cols-2 gap-3 mb-6">
                         <button onClick={() => setShowExpenseModal(true)}
@@ -129,15 +179,63 @@ const GroupDetails = () => {
                             {settlements.length === 0 ? (
                                 <p className="text-slate-400 text-center py-3 text-sm">No debts! Everyone is settled up. 🎉</p>
                             ) : (
-                                <ul className="space-y-2">
+                                <ul className="space-y-4">
                                     {settlements.map((s, i) => (
-                                        <li key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                        <li key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-slate-50 rounded-lg gap-3">
                                             <div className="flex items-center flex-1 text-sm">
-                                                <span className="font-medium text-slate-700">{s.fromUser === user?.id ? "You" : `User ${s.fromUser.substring(0, 6)}`}</span>
+                                                <span className="font-medium text-slate-700">{getMemberName(s.fromUser)}</span>
                                                 <ChevronRight className="h-3.5 w-3.5 mx-2 text-slate-300" />
-                                                <span className="font-medium text-slate-700">{s.toUser === user?.id ? "You" : `User ${s.toUser.substring(0, 6)}`}</span>
+                                                <span className="font-medium text-slate-700">{getMemberName(s.toUser)}</span>
                                             </div>
-                                            <span className="font-bold text-emerald-600 text-sm">₹{s.amount.toFixed(2)}</span>
+                                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                                                <span className="font-bold text-emerald-600 text-sm">₹{s.amount.toFixed(2)}</span>
+                                                {user?.id === s.fromUser && (
+                                                    <button onClick={() => handleMarkAsPaid(s.toUser, s.amount)}
+                                                        className="px-3 py-1.5 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs font-semibold rounded-md transition-colors">
+                                                        Mark as Paid
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Payments History */}
+                    <div className="mb-6">
+                        <h2 className="text-base font-bold flex items-center text-slate-900 mb-3">
+                            <CheckCircle2 className="h-4 w-4 mr-1.5 text-blue-500" />
+                            Payments History
+                        </h2>
+                        <div className="card p-4">
+                            {payments.length === 0 ? (
+                                <p className="text-slate-400 text-center py-3 text-sm">No payments recorded yet.</p>
+                            ) : (
+                                <ul className="divide-y divide-slate-100">
+                                    {payments.map((payment) => (
+                                        <li key={payment.id} className="py-3 flex sm:items-center justify-between flex-col sm:flex-row gap-2">
+                                            <div>
+                                                <p className="font-medium text-slate-900 text-sm">
+                                                    {getMemberName(payment.payerId)} paid {getMemberName(payment.receiverId)}
+                                                </p>
+                                                <p className="text-xs text-slate-400 mt-0.5">
+                                                    {new Date(payment.createdAt).toLocaleDateString()} ·
+                                                    <span className={`ml-1 font-semibold ${payment.status === 'verified' ? 'text-emerald-500' : 'text-amber-500'}`}>
+                                                        {payment.status.toUpperCase()}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center justify-between sm:justify-end gap-4">
+                                                <span className="font-bold text-slate-900 text-sm">₹{payment.amount.toFixed(2)}</span>
+                                                {user?.id === group?.createdBy && payment.status === 'pending' && (
+                                                    <button onClick={() => handleVerifyPayment(payment.id)}
+                                                        className="px-3 py-1.5 bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs font-semibold rounded-md transition-colors">
+                                                        Verify
+                                                    </button>
+                                                )}
+                                            </div>
                                         </li>
                                     ))}
                                 </ul>
@@ -161,8 +259,13 @@ const GroupDetails = () => {
                                             <div>
                                                 <p className="font-semibold text-slate-900 text-sm">{expense.description}</p>
                                                 <p className="text-xs text-slate-400 mt-0.5">
-                                                    Paid by {expense.paidBy === user?.id ? "You" : `User ${expense.paidBy.substring(0, 6)}`} · {new Date(expense.createdAt).toLocaleDateString()}
+                                                    Paid by {getMemberName(expense.paidBy)} · {new Date(expense.createdAt).toLocaleDateString()}
                                                 </p>
+                                                {group?.members?.length > 0 && (
+                                                    <p className="text-xs text-indigo-600 font-medium mt-1.5 bg-indigo-50 inline-block px-2 py-0.5 rounded-md">
+                                                        Split: ₹{(expense.amount / group.members.length).toFixed(2)} / member
+                                                    </p>
+                                                )}
                                             </div>
                                             <span className="font-bold text-slate-900 text-sm">₹{expense.amount.toFixed(2)}</span>
                                         </li>

@@ -52,6 +52,7 @@ func main() {
 	routes.SetupGroupRoutes(r)
 	routes.SetupExpenseRoutes(r)
 	routes.SetupSettlementRoutes(r)
+	routes.SetupPaymentRoutes(r)
 
 	// Start server
 	port := os.Getenv("PORT")
