@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 
 	"expensetracker/config"
 	"expensetracker/routes"
@@ -19,9 +20,15 @@ func main() {
 		log.Println("No .env file found, assuming environment variables are set")
 	}
 
-	// Connect to Database
-	// We'll wrap this or let it run when the MongoDB URI is defined
-	config.ConnectDB()
+	// Connect to Database if valid URI is present
+	mongoURI := os.Getenv("MONGO_URI")
+	if mongoURI != "" && !strings.Contains(mongoURI, "<username>:<password>") {
+		config.ConnectDB()
+	} else {
+		log.Println("⚠️ WARNING: Invalid or default MONGO_URI in .env")
+		log.Println("⚠️ Database is NOT connected. APIs will return 500 errors.")
+		log.Println("⚠️ Please update backend/.env with your real MongoDB Atlas connection string.")
+	}
 
 	// Initialize Gin router
 	r := gin.Default()
