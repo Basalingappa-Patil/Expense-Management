@@ -1,8 +1,10 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown, Wallet, ChevronRight } from 'lucide-react';
+import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown, Wallet, ChevronRight, X } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
 import api from '../utils/api';
+import PageTransition from '../components/PageTransition';
 
 const Dashboard = () => {
     const { user, logout } = useContext(AuthContext);
@@ -10,9 +12,8 @@ const Dashboard = () => {
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
 
-    // Stats
-    const totalOwed = 0; // People owe user
-    const totalYouOwe = 0; // User owes people
+    const totalOwed = 0;
+    const totalYouOwe = 0;
 
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
@@ -24,7 +25,8 @@ const Dashboard = () => {
             await api.post('/groups', { name: newGroupName });
             setShowCreateGroupModal(false);
             setNewGroupName('');
-            window.location.reload();
+            const res = await api.get('/groups');
+            setGroups(res.data || []);
         } catch (err) {
             console.error(err);
             alert("Failed to create group");
@@ -32,19 +34,16 @@ const Dashboard = () => {
     };
 
     useEffect(() => {
-        // In a full app, we would fetch cross-group totals here.
-        // For now we'll fetch the user's groups to display them.
         const fetchDashboardData = async () => {
             try {
                 const res = await api.get('/groups');
                 setGroups(res.data || []);
-                setLoading(false);
             } catch (err) {
                 console.error("Failed to load dashboard data", err);
+            } finally {
                 setLoading(false);
             }
         };
-
         fetchDashboardData();
     }, []);
 
@@ -56,165 +55,156 @@ const Dashboard = () => {
     const netBalance = totalOwed - totalYouOwe;
 
     return (
-        <div className="min-h-screen bg-slate-50">
+        <PageTransition>
+            <div className="min-h-screen bg-slate-100">
 
-            {/* Navbar */}
-            <nav className="bg-white shadow-sm border-b border-slate-200 sticky top-0 z-10">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <div className="flex-shrink-0 flex items-center gap-2">
-                                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                                    <Activity className="h-5 w-5 text-white" />
+                {/* Navbar */}
+                <nav className="bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-10">
+                    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex justify-between h-14">
+                            <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
+                                    <Activity className="h-4 w-4 text-white" />
                                 </div>
-                                <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
-                                    SplitTracker
+                                <span className="text-base font-bold text-slate-900">SplitTracker</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className="text-sm text-slate-500 hidden sm:block">
+                                    Hi, <span className="font-medium text-slate-700">{user?.name}</span>
                                 </span>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm text-slate-600 font-medium hidden sm:block">
-                                Hello, {user?.name}
-                            </span>
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center px-4 py-2 border border-slate-200 text-sm font-medium rounded-lg text-slate-600 bg-white hover:bg-slate-50 hover:text-red-600 transition-colors"
-                            >
-                                <LogOut className="h-4 w-4 mr-2" />
-                                Logout
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-                {/* Welcome & Action Header */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-                        <p className="text-slate-500 mt-1">Overview of your shared expenses and balances.</p>
-                    </div>
-                    <button onClick={() => setShowCreateGroupModal(true)} className="flex items-center justify-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md transition-colors w-full md:w-auto">
-                        <PlusCircle className="h-5 w-5 mr-2" />
-                        New Group
-                    </button>
-                </div>
-
-                {/* Financial Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total Owed To You</h3>
-                            <div className="p-2 bg-emerald-50 rounded-lg">
-                                <TrendingUp className="h-5 w-5 text-emerald-600" />
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-slate-800">₹{totalOwed.toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition-shadow">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">Total You Owe</h3>
-                            <div className="p-2 bg-rose-50 rounded-lg">
-                                <TrendingDown className="h-5 w-5 text-rose-600" />
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold text-slate-800">₹{totalYouOwe.toFixed(2)}</p>
-                        </div>
-                    </div>
-
-                    <div className={`rounded-2xl shadow-sm border p-6 flex flex-col justify-between hover:shadow-md transition-all ${netBalance >= 0 ? 'bg-gradient-to-br from-indigo-500 to-blue-600 border-transparent text-white' : 'bg-gradient-to-br from-rose-500 to-red-600 border-transparent text-white'}`}>
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className={`text-sm font-semibold uppercase tracking-wider ${netBalance >= 0 ? 'text-indigo-100' : 'text-rose-100'}`}>Net Balance</h3>
-                            <div className="p-2 bg-white/20 rounded-lg">
-                                <Wallet className="h-5 w-5 text-white" />
-                            </div>
-                        </div>
-                        <div>
-                            <p className="text-3xl font-bold">
-                                {netBalance >= 0 ? '+' : ''}₹{netBalance.toFixed(2)}
-                            </p>
-                            <p className={`text-sm mt-1 ${netBalance >= 0 ? 'text-indigo-100' : 'text-rose-100'}`}>
-                                {netBalance >= 0 ? 'You are owed in total' : 'You owe in total'}
-                            </p>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* Groups List Section */}
-                <div>
-                    <h2 className="text-xl font-bold text-slate-900 mb-6 flex items-center">
-                        <Users className="h-5 w-5 mr-2 text-slate-500" />
-                        Your Groups
-                    </h2>
-
-                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                        {loading ? (
-                            <div className="p-8 text-center text-slate-500">Loading your groups...</div>
-                        ) : groups.length > 0 ? (
-                            <ul className="divide-y divide-slate-100">
-                                {groups.map((group) => (
-                                    <li key={group.id} className="hover:bg-slate-50 transition-colors">
-                                        <Link to={`/group/${group.id}`} className="block px-6 py-4">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-sm font-medium text-blue-600 truncate">{group.name}</p>
-                                                    <p className="text-sm text-slate-500 mt-1">Created on {new Date(group.createdAt).toLocaleDateString()}</p>
-                                                </div>
-                                                <div>
-                                                    <ChevronRight className="h-5 w-5 text-slate-400" />
-                                                </div>
-                                            </div>
-                                        </Link>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className="p-12 text-center flex flex-col items-center">
-                                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                                    <Users className="h-8 w-8 text-slate-400" />
-                                </div>
-                                <h3 className="text-lg font-medium text-slate-900">No Groups Yet</h3>
-                                <p className="mt-1 text-slate-500 max-w-sm mx-auto">
-                                    Create a group to start splitting expenses with friends, family, or roommates.
-                                </p>
-                                <button onClick={() => setShowCreateGroupModal(true)} className="mt-6 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors">
-                                    Create First Group
+                                <button onClick={handleLogout}
+                                    className="flex items-center px-3 py-1.5 border border-slate-200 text-sm font-medium rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-200">
+                                    <LogOut className="h-3.5 w-3.5 mr-1.5" />
+                                    Logout
                                 </button>
                             </div>
-                        )}
+                        </div>
                     </div>
-                </div>
+                </nav>
 
-            </main>
+                <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-            {/* Create Group Modal */}
-            {showCreateGroupModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                        <h3 className="text-xl font-bold mb-4">Create New Group</h3>
-                        <form onSubmit={handleCreateGroup} className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-medium mb-1 text-slate-700">Group Name</label>
-                                <input required type="text" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Goa Trip" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} />
-                            </div>
-                            <div className="flex justify-end gap-3 mt-6">
-                                <button type="button" onClick={() => setShowCreateGroupModal(false)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
-                                <button type="submit" className="px-6 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow">Create</button>
-                            </div>
-                        </form>
+                    {/* Header */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+                        <div>
+                            <h1 className="text-xl font-bold text-slate-900">Dashboard</h1>
+                            <p className="text-slate-500 text-sm mt-0.5">Your expenses and balances at a glance.</p>
+                        </div>
+                        <button onClick={() => setShowCreateGroupModal(true)}
+                            className="btn-primary flex items-center justify-center text-sm py-2.5 w-full sm:w-auto">
+                            <PlusCircle className="h-4 w-4 mr-1.5" />
+                            New Group
+                        </button>
                     </div>
-                </div>
-            )}
 
-        </div>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+                        <div className="card p-5">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Owed To You</span>
+                                <div className="p-1.5 bg-emerald-50 rounded-lg">
+                                    <TrendingUp className="h-4 w-4 text-emerald-600" />
+                                </div>
+                            </div>
+                            <p className="text-2xl font-bold text-slate-900">₹{totalOwed.toFixed(2)}</p>
+                        </div>
+
+                        <div className="card p-5">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">You Owe</span>
+                                <div className="p-1.5 bg-rose-50 rounded-lg">
+                                    <TrendingDown className="h-4 w-4 text-rose-600" />
+                                </div>
+                            </div>
+                            <p className="text-2xl font-bold text-slate-900">₹{totalYouOwe.toFixed(2)}</p>
+                        </div>
+
+                        <div className={`rounded-xl p-5 shadow-sm text-white ${netBalance >= 0 ? 'bg-indigo-600 shadow-indigo-200' : 'bg-rose-600 shadow-rose-200'}`}>
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-white/70">Net Balance</span>
+                                <div className="p-1.5 bg-white/15 rounded-lg">
+                                    <Wallet className="h-4 w-4 text-white" />
+                                </div>
+                            </div>
+                            <p className="text-2xl font-bold">{netBalance >= 0 ? '+' : ''}₹{netBalance.toFixed(2)}</p>
+                            <p className="text-xs mt-0.5 text-white/60">{netBalance >= 0 ? 'You are owed in total' : 'You owe in total'}</p>
+                        </div>
+                    </div>
+
+                    {/* Groups */}
+                    <div>
+                        <h2 className="text-base font-bold text-slate-900 mb-3 flex items-center">
+                            <Users className="h-4 w-4 mr-1.5 text-slate-400" />
+                            Your Groups
+                        </h2>
+
+                        <div className="card overflow-hidden">
+                            {loading ? (
+                                <div className="p-8 text-center text-slate-400 text-sm">Loading groups...</div>
+                            ) : groups.length > 0 ? (
+                                <ul className="divide-y divide-slate-100">
+                                    {groups.map((group) => (
+                                        <li key={group.id} className="hover:bg-slate-50 transition-colors duration-150">
+                                            <Link to={`/group/${group.id}`} className="flex items-center justify-between px-5 py-3.5">
+                                                <div>
+                                                    <p className="text-sm font-medium text-indigo-600">{group.name}</p>
+                                                    <p className="text-xs text-slate-400 mt-0.5">Created {new Date(group.createdAt).toLocaleDateString()}</p>
+                                                </div>
+                                                <ChevronRight className="h-4 w-4 text-slate-300" />
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="p-10 text-center flex flex-col items-center">
+                                    <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                                        <Users className="h-6 w-6 text-slate-400" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold text-slate-900">No Groups Yet</h3>
+                                    <p className="mt-1 text-xs text-slate-400 max-w-xs mx-auto">
+                                        Create a group to start splitting expenses with your friends.
+                                    </p>
+                                    <button onClick={() => setShowCreateGroupModal(true)}
+                                        className="mt-4 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg font-semibold text-sm transition-colors duration-200">
+                                        Create First Group
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </main>
+
+                {/* Modal */}
+                <AnimatePresence>
+                    {showCreateGroupModal && (
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
+                            className="fixed inset-0 bg-black/30 flex items-center justify-center z-50 p-4"
+                            onClick={() => setShowCreateGroupModal(false)}>
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex items-center justify-between mb-4">
+                                    <h3 className="text-base font-bold text-slate-900">Create New Group</h3>
+                                    <button onClick={() => setShowCreateGroupModal(false)} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
+                                        <X className="h-4 w-4 text-slate-400" />
+                                    </button>
+                                </div>
+                                <form onSubmit={handleCreateGroup}>
+                                    <label className="block text-sm font-medium mb-1.5 text-slate-700">Group Name</label>
+                                    <input required type="text" className="input-field pl-4 mb-4" placeholder="e.g. Goa Trip"
+                                        value={newGroupName} onChange={e => setNewGroupName(e.target.value)} />
+                                    <div className="flex justify-end gap-2">
+                                        <button type="button" onClick={() => setShowCreateGroupModal(false)}
+                                            className="px-4 py-2 font-medium text-slate-500 hover:bg-slate-100 rounded-lg text-sm transition-colors">Cancel</button>
+                                        <button type="submit" className="btn-primary text-sm py-2">Create</button>
+                                    </div>
+                                </form>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </PageTransition>
     );
 };
 

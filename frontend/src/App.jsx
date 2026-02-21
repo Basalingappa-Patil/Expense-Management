@@ -1,5 +1,6 @@
 import React, { useContext } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AuthContext } from './context/AuthContext';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
@@ -12,29 +13,33 @@ const PrivateRoute = ({ children }) => {
 };
 
 function App() {
+  const location = useLocation();
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route
-          path="/dashboard"
-          element={
-            <PrivateRoute>
-              <Dashboard />
-            </PrivateRoute>
-          }
-        />
-        <Route
-          path="/group/:id"
-          element={
-            <PrivateRoute>
-              <GroupDetails />
-            </PrivateRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/dashboard" />} />
-      </Routes>
+    <div className="min-h-screen bg-gray-50">
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route
+            path="/dashboard"
+            element={
+              <PrivateRoute>
+                <Dashboard />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/group/:id"
+            element={
+              <PrivateRoute>
+                <GroupDetails />
+              </PrivateRoute>
+            }
+          />
+          <Route path="*" element={<Navigate to="/dashboard" />} />
+        </Routes>
+      </AnimatePresence>
     </div>
   );
 }
