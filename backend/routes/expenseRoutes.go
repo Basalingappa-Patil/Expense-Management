@@ -12,5 +12,6 @@ func SetupExpenseRoutes(router *gin.Engine) {
 	expenseRoutes.Use(middleware.AuthMiddleware())
 	{
 		expenseRoutes.POST("/", controllers.AddExpense)
+		expenseRoutes.GET("/:groupId", controllers.GetGroupExpenses)
 	}
 }

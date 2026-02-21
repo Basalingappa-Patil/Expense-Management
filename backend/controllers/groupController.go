@@ -151,3 +151,43 @@ func GetGroupDetails(c *gin.Context) {
 
 	c.JSON(http.StatusOK, group)
 }
+
+func GetUserGroups(c *gin.Context) {
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	userID, err := primitive.ObjectIDFromHex(userIDStr.(string))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	groupCollection := config.GetCollection("groups")
+	
+	// Find all groups where the user is in the Members array
+	cursor, err := groupCollection.Find(ctx, bson.M{"members": userID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch groups"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var groups []models.Group
+	if err = cursor.All(ctx, &groups); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode groups"})
+		return
+	}
+
+	// Always return an array, even if empty
+	if groups == nil {
+		groups = []models.Group{}
+	}
+
+	c.JSON(http.StatusOK, groups)
+}

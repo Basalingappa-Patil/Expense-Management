@@ -108,3 +108,65 @@ func AddExpense(c *gin.Context) {
 		"splits":  splits,
 	})
 }
+
+func GetGroupExpenses(c *gin.Context) {
+	groupIDStr := c.Param("groupId")
+	groupID, err := primitive.ObjectIDFromHex(groupIDStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid group ID"})
+		return
+	}
+
+	// Verify user is member of group
+	userIDStr, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userID, _ := primitive.ObjectIDFromHex(userIDStr.(string))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	groupCollection := config.GetCollection("groups")
+	var group models.Group
+	err = groupCollection.FindOne(ctx, bson.M{"_id": groupID}).Decode(&group)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Group not found"})
+		return
+	}
+
+	isMember := false
+	for _, memberID := range group.Members {
+		if memberID == userID {
+			isMember = true
+			break
+		}
+	}
+	if !isMember {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You are not a member of this group"})
+		return
+	}
+
+	expenseCollection := config.GetCollection("expenses")
+	
+	// Find all expenses matching the GroupID
+	cursor, err := expenseCollection.Find(ctx, bson.M{"groupId": groupID})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch expenses"})
+		return
+	}
+	defer cursor.Close(ctx)
+
+	var expenses []models.Expense
+	if err = cursor.All(ctx, &expenses); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode expenses"})
+		return
+	}
+
+	if expenses == nil {
+		expenses = []models.Expense{}
+	}
+
+	c.JSON(http.StatusOK, expenses)
+}

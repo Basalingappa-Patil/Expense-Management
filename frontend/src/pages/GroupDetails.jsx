@@ -23,18 +23,16 @@ const GroupDetails = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [groupRes, settlementRes] = await Promise.all([
+                const [groupRes, settlementRes, expenseRes] = await Promise.all([
                     api.get(`/groups/${id}`),
-                    api.get(`/settlements/${id}`)
+                    api.get(`/settlements/${id}`),
+                    api.get(`/expenses/${id}`)
                 ]);
 
                 setGroup(groupRes.data);
                 setSettlements(settlementRes.data.transactions || []);
                 setBalances(settlementRes.data.balances || {});
-                // Mocking expenses since we didn't add a GET API for it in Go yet.
-                setExpenses([
-                    { id: '1', description: 'Grocery run', amount: 1500, paidBy: user?.id, date: new Date().toISOString() }
-                ]);
+                setExpenses(expenseRes.data || []);
                 setLoading(false);
             } catch (err) {
                 console.error("Failed to fetch group details", err);
@@ -136,6 +134,36 @@ const GroupDetails = () => {
                                         </div>
                                         <div className="ml-4 font-bold text-lg text-emerald-600">
                                             ₹{s.amount.toFixed(2)}
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
+                </div>
+
+                {/* Expense History Segment */}
+                <div className="mb-10">
+                    <h2 className="text-xl font-bold flex items-center text-slate-900 mb-6">
+                        <CreditCard className="h-5 w-5 mr-2 text-blue-500" />
+                        Recent Expenses
+                    </h2>
+
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 overflow-hidden">
+                        {expenses.length === 0 ? (
+                            <p className="text-slate-500 text-center py-4">No expenses recorded yet.</p>
+                        ) : (
+                            <ul className="divide-y divide-slate-100">
+                                {expenses.map((expense) => (
+                                    <li key={expense.id} className="py-4 flex justify-between items-center">
+                                        <div>
+                                            <p className="font-semibold text-slate-900">{expense.description}</p>
+                                            <p className="text-sm text-slate-500">
+                                                Paid by {expense.paidBy === user?.id ? "You" : `User ${expense.paidBy.substring(0, 6)}`} on {new Date(expense.createdAt).toLocaleDateString()}
+                                            </p>
+                                        </div>
+                                        <div className="font-bold text-slate-800">
+                                            ₹{expense.amount.toFixed(2)}
                                         </div>
                                     </li>
                                 ))}

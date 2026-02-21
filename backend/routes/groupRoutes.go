@@ -14,5 +14,6 @@ func SetupGroupRoutes(router *gin.Engine) {
 		groupRoutes.POST("/", controllers.CreateGroup)
 		groupRoutes.POST("/:id/members", controllers.AddMember)
 		groupRoutes.GET("/:id", controllers.GetGroupDetails)
+		groupRoutes.GET("/", controllers.GetUserGroups)
 	}
 }

@@ -19,8 +19,8 @@ const Dashboard = () => {
         // For now we'll fetch the user's groups to display them.
         const fetchDashboardData = async () => {
             try {
-                // Fetch all groups for the user (assuming an API endpoint exists, if not we will mock or implement soon)
-                // For project scope, we will redirect straightforwardly.
+                const res = await api.get('/groups');
+                setGroups(res.data || []);
                 setLoading(false);
             } catch (err) {
                 console.error("Failed to load dashboard data", err);
