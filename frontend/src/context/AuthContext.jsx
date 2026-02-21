@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useState, useEffect } from 'react';
 import api from '../utils/api';
 
@@ -12,6 +13,7 @@ export const AuthProvider = ({ children }) => {
         const storedUser = localStorage.getItem('user');
 
         if (token && storedUser) {
+            // eslint-disable-next-line
             setUser(JSON.parse(storedUser));
         }
         setLoading(false);

@@ -9,7 +9,6 @@ const GroupDetails = () => {
     const { user } = useContext(AuthContext);
     const [group, setGroup] = useState(null);
     const [settlements, setSettlements] = useState([]);
-    const [balances, setBalances] = useState({});
     const [expenses, setExpenses] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -31,7 +30,6 @@ const GroupDetails = () => {
 
                 setGroup(groupRes.data);
                 setSettlements(settlementRes.data.transactions || []);
-                setBalances(settlementRes.data.balances || {});
                 setExpenses(expenseRes.data || []);
                 setLoading(false);
             } catch (err) {
@@ -55,6 +53,7 @@ const GroupDetails = () => {
             // Reload logic would go here
             window.location.reload();
         } catch (err) {
+            console.error(err);
             alert("Failed to add expense");
         }
     };

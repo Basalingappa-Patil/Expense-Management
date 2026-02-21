@@ -34,7 +34,10 @@ func main() {
 	r := gin.Default()
 
 	// Configure CORS
-	r.Use(cors.Default())
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowAllOrigins = true
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
+	r.Use(cors.New(corsConfig))
 
 	// Basic route for testing
 	r.GET("/api/health", func(c *gin.Context) {

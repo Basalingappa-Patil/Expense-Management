@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown } from 'lucide-react';
+import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown, Wallet, ChevronRight } from 'lucide-react';
 import api from '../utils/api';
 
 const Dashboard = () => {
@@ -11,8 +11,25 @@ const Dashboard = () => {
     const [loading, setLoading] = useState(true);
 
     // Stats
-    const [totalOwed, setTotalOwed] = useState(0); // People owe user
-    const [totalYouOwe, setTotalYouOwe] = useState(0); // User owes people
+    const totalOwed = 0; // People owe user
+    const totalYouOwe = 0; // User owes people
+
+    const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
+    const [newGroupName, setNewGroupName] = useState('');
+
+    const handleCreateGroup = async (e) => {
+        e.preventDefault();
+        if (!newGroupName.trim()) return;
+        try {
+            await api.post('/groups', { name: newGroupName });
+            setShowCreateGroupModal(false);
+            setNewGroupName('');
+            window.location.reload();
+        } catch (err) {
+            console.error(err);
+            alert("Failed to create group");
+        }
+    };
 
     useEffect(() => {
         // In a full app, we would fetch cross-group totals here.
@@ -79,7 +96,7 @@ const Dashboard = () => {
                         <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
                         <p className="text-slate-500 mt-1">Overview of your shared expenses and balances.</p>
                     </div>
-                    <button className="flex items-center justify-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md transition-colors w-full md:w-auto">
+                    <button onClick={() => setShowCreateGroupModal(true)} className="flex items-center justify-center px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-md transition-colors w-full md:w-auto">
                         <PlusCircle className="h-5 w-5 mr-2" />
                         New Group
                     </button>
@@ -168,7 +185,7 @@ const Dashboard = () => {
                                 <p className="mt-1 text-slate-500 max-w-sm mx-auto">
                                     Create a group to start splitting expenses with friends, family, or roommates.
                                 </p>
-                                <button className="mt-6 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors">
+                                <button onClick={() => setShowCreateGroupModal(true)} className="mt-6 px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-medium transition-colors">
                                     Create First Group
                                 </button>
                             </div>
@@ -177,6 +194,26 @@ const Dashboard = () => {
                 </div>
 
             </main>
+
+            {/* Create Group Modal */}
+            {showCreateGroupModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                        <h3 className="text-xl font-bold mb-4">Create New Group</h3>
+                        <form onSubmit={handleCreateGroup} className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium mb-1 text-slate-700">Group Name</label>
+                                <input required type="text" className="w-full border p-3 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Goa Trip" value={newGroupName} onChange={e => setNewGroupName(e.target.value)} />
+                            </div>
+                            <div className="flex justify-end gap-3 mt-6">
+                                <button type="button" onClick={() => setShowCreateGroupModal(false)} className="px-4 py-2 font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+                                <button type="submit" className="px-6 py-2 font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow">Create</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
