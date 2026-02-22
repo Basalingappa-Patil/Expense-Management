@@ -5,15 +5,16 @@ import { AuthContext } from '../context/AuthContext';
 import { ArrowLeft, UserPlus, CreditCard, ChevronRight, CheckCircle2, X, Banknote, Smartphone, Clock, ShieldCheck, AlertCircle } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
+import Navbar from '../components/Navbar';
 
 const ModalWrapper = ({ show, onClose, children }) => (
     <AnimatePresence>
         {show && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}
-                className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
                 <motion.div initial={{ opacity: 0, scale: 0.95, y: 10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                     transition={{ duration: 0.15 }}
-                    className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    className="bg-[#1e2235] rounded-2xl p-6 w-full max-w-sm shadow-2xl border border-white/[0.08]" onClick={(e) => e.stopPropagation()}>
                     {children}
                 </motion.div>
             </motion.div>
@@ -36,7 +37,6 @@ const GroupDetails = () => {
     const [showMemberModal, setShowMemberModal] = useState(false);
     const [memberEmail, setMemberEmail] = useState('');
 
-    // Payment modal state
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [pendingPayment, setPendingPayment] = useState(null);
     const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -48,37 +48,35 @@ const GroupDetails = () => {
                 api.get(`/groups/${id}`),
                 api.get(`/settlements/${id}`),
                 api.get(`/expenses/${id}`),
-                api.get(`/payments/${id}`)
+                api.get(`/payments/${id}`),
             ]);
-            console.log('Group data:', groupRes.data);
-            console.log('Settlements:', settlementRes.data);
-            console.log('Expenses:', expenseRes.data);
-            console.log('Payments:', paymentRes.data);
             setGroup(groupRes.data);
-            setSettlements(settlementRes.data.transactions || []);
+            setSettlements(settlementRes.data?.transactions || []);
             setExpenses(expenseRes.data || []);
             setPayments(paymentRes.data || []);
         } catch (err) {
-            console.error("Failed to fetch group details", err);
+            console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
-    useEffect(() => {
-        fetchData();
-    }, [id]);
+    useEffect(() => { fetchData(); }, [id]);
 
     const handleAddExpense = async (e) => {
         e.preventDefault();
         try {
-            await api.post('/expenses', { groupId: id, amount: parseFloat(expenseData.amount), description: expenseData.description });
+            await api.post('/expenses', {
+                groupId: id,
+                amount: parseFloat(expenseData.amount),
+                description: expenseData.description,
+            });
             setShowExpenseModal(false);
             setExpenseData({ amount: '', description: '' });
             await fetchData();
         } catch (err) {
             console.error(err);
-            alert(err.response?.data?.error || "Failed to add expense");
+            alert("Failed to add expense");
         }
     };
 
@@ -90,13 +88,13 @@ const GroupDetails = () => {
             setMemberEmail('');
             await fetchData();
         } catch (err) {
+            console.error(err);
             alert(err.response?.data?.error || "Failed to add member");
         }
     };
 
     const getMemberName = (memberId) => {
-        if (!memberId) return "Unknown";
-        if (memberId === user?.id) return "You";
+        if (memberId === user?.id) return 'You';
         if (!group || !group.members) return `User...${String(memberId).slice(-4)}`;
         const member = group.members.find(m => m.id === memberId);
         return member ? member.name : `User...${String(memberId).slice(-4)}`;
@@ -149,8 +147,8 @@ const GroupDetails = () => {
     if (loading) {
         return (
             <PageTransition>
-                <div className="min-h-screen bg-slate-100 flex justify-center items-center">
-                    <p className="text-slate-400 text-sm animate-pulse">Loading group details...</p>
+                <div className="min-h-screen bg-[#0f1117] flex justify-center items-center">
+                    <p className="text-slate-500 text-sm animate-pulse">Loading group details...</p>
                 </div>
             </PageTransition>
         );
@@ -161,17 +159,18 @@ const GroupDetails = () => {
 
     return (
         <PageTransition>
-            <div className="min-h-screen bg-slate-100">
+            <div className="min-h-screen bg-[#0f1117]">
+                <Navbar />
 
-                {/* Header */}
-                <div className="bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-10 px-4 py-3 sm:px-6">
+                {/* Sub-header with group info */}
+                <div className="bg-[#13151f] border-b border-white/[0.04] px-4 py-3 sm:px-6">
                     <div className="max-w-4xl mx-auto flex items-center gap-3">
-                        <Link to="/dashboard" className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors duration-150">
+                        <Link to="/dashboard" className="p-1.5 hover:bg-white/[0.06] rounded-lg transition-colors duration-150">
                             <ArrowLeft className="h-5 w-5 text-slate-500" />
                         </Link>
                         <div>
-                            <h1 className="text-base font-bold text-slate-900">{group?.name}</h1>
-                            <p className="text-xs text-slate-400">{group?.members?.length || 0} members</p>
+                            <h1 className="text-base font-bold text-white">{group?.name}</h1>
+                            <p className="text-xs text-slate-500">{group?.members?.length || 0} members</p>
                         </div>
                     </div>
                 </div>
@@ -183,8 +182,8 @@ const GroupDetails = () => {
                         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Members</h2>
                         <div className="flex flex-wrap gap-2">
                             {group?.members?.map((m) => (
-                                <span key={m.id} className="px-3 py-1.5 bg-white border border-slate-200 rounded-full text-sm font-medium text-slate-700 shadow-sm flex items-center">
-                                    <div className="h-5 w-5 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center mr-2 text-xs font-bold">
+                                <span key={m.id} className="px-3 py-1.5 bg-[#1a1d2e] border border-white/[0.06] rounded-full text-sm font-medium text-slate-300 shadow-sm flex items-center">
+                                    <div className="h-5 w-5 bg-indigo-500/20 text-indigo-400 rounded-full flex items-center justify-center mr-2 text-xs font-bold">
                                         {m.id === user?.id ? 'Y' : m.name.charAt(0).toUpperCase()}
                                     </div>
                                     {m.id === user?.id ? 'You' : m.name}
@@ -196,28 +195,28 @@ const GroupDetails = () => {
                     {/* Actions */}
                     <div className="grid grid-cols-2 gap-3">
                         <button onClick={() => setShowExpenseModal(true)}
-                            className="flex flex-col items-center justify-center p-5 bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-sm shadow-indigo-200 text-white transition-all duration-200">
+                            className="flex flex-col items-center justify-center p-5 bg-indigo-600 hover:bg-indigo-500 rounded-xl shadow-lg shadow-indigo-500/15 text-white transition-all duration-200">
                             <CreditCard className="h-6 w-6 mb-1.5" />
                             <span className="font-semibold text-sm">Add Expense</span>
                         </button>
                         <button onClick={() => setShowMemberModal(true)}
-                            className="flex flex-col items-center justify-center p-5 card text-slate-600 hover:text-indigo-600 transition-all duration-200">
+                            className="flex flex-col items-center justify-center p-5 bg-[#1a1d2e] border border-white/[0.06] rounded-xl text-slate-400 hover:text-indigo-400 hover:border-indigo-500/20 transition-all duration-200">
                             <UserPlus className="h-6 w-6 mb-1.5" />
                             <span className="font-semibold text-sm">Add Member</span>
                         </button>
                     </div>
 
-                    {/* ── SETTLEMENTS ── */}
+                    {/* SETTLEMENTS */}
                     <div>
                         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <ChevronRight className="h-4 w-4 text-emerald-500" />
+                            <ChevronRight className="h-4 w-4 text-emerald-400" />
                             Who Owes Who
                         </h2>
-                        <div className="card p-4">
+                        <div className="bg-[#1a1d2e] rounded-xl border border-white/[0.06] shadow-lg p-4">
                             {settlements.length === 0 ? (
                                 <div className="flex flex-col items-center py-6 gap-2">
                                     <CheckCircle2 className="h-8 w-8 text-emerald-400" />
-                                    <p className="text-slate-400 text-sm font-medium">All settled up! 🎉</p>
+                                    <p className="text-slate-500 text-sm font-medium">All settled up! 🎉</p>
                                 </div>
                             ) : (
                                 <ul className="space-y-3">
@@ -225,30 +224,30 @@ const GroupDetails = () => {
                                         const isDebtor = user?.id === s.fromUser;
                                         const isCreditor = user?.id === s.toUser;
                                         return (
-                                            <li key={i} className="rounded-xl bg-slate-50 border border-slate-100 p-4">
+                                            <li key={i} className="rounded-xl bg-white/[0.03] border border-white/[0.04] p-4">
                                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                                     <div className="flex items-center gap-2 text-sm flex-wrap">
-                                                        <div className="h-7 w-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-bold text-xs flex-shrink-0">
+                                                        <div className="h-7 w-7 rounded-full bg-rose-500/15 flex items-center justify-center text-rose-400 font-bold text-xs flex-shrink-0">
                                                             {getMemberName(s.fromUser).charAt(0)}
                                                         </div>
-                                                        <span className="font-semibold text-slate-800">{getMemberName(s.fromUser)}</span>
-                                                        <ChevronRight className="h-3.5 w-3.5 text-slate-300" />
-                                                        <div className="h-7 w-7 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs flex-shrink-0">
+                                                        <span className="font-semibold text-slate-200">{getMemberName(s.fromUser)}</span>
+                                                        <ChevronRight className="h-3.5 w-3.5 text-slate-600" />
+                                                        <div className="h-7 w-7 rounded-full bg-emerald-500/15 flex items-center justify-center text-emerald-400 font-bold text-xs flex-shrink-0">
                                                             {getMemberName(s.toUser).charAt(0)}
                                                         </div>
-                                                        <span className="font-semibold text-slate-800">{getMemberName(s.toUser)}</span>
+                                                        <span className="font-semibold text-slate-200">{getMemberName(s.toUser)}</span>
                                                     </div>
                                                     <div className="flex items-center justify-between sm:justify-end gap-3">
-                                                        <span className="font-bold text-slate-900 text-lg">₹{s.amount.toFixed(2)}</span>
+                                                        <span className="font-bold text-white text-lg">₹{s.amount.toFixed(2)}</span>
                                                         {isDebtor && (
                                                             <button onClick={() => openPaymentModal(s.toUser, s.amount)}
-                                                                className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-700 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
+                                                                className="px-4 py-2 bg-indigo-600 text-white hover:bg-indigo-500 text-xs font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-indigo-500/15">
                                                                 <CreditCard className="h-3.5 w-3.5" />
                                                                 Pay Now
                                                             </button>
                                                         )}
                                                         {isCreditor && (
-                                                            <span className="text-xs text-slate-400 italic bg-slate-100 px-2 py-1 rounded-md">Awaiting payment from them</span>
+                                                            <span className="text-xs text-slate-500 italic bg-white/[0.04] px-2 py-1 rounded-md">Awaiting payment from them</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -260,58 +259,55 @@ const GroupDetails = () => {
                         </div>
                     </div>
 
-                    {/* ── PENDING PAYMENTS (to confirm) ── */}
+                    {/* PENDING PAYMENTS */}
                     {pendingPaymentsList.length > 0 && (
                         <div>
                             <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-amber-500" />
+                                <Clock className="h-4 w-4 text-amber-400" />
                                 Payments Awaiting Confirmation
-                                <span className="ml-1 bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">{pendingPaymentsList.length}</span>
+                                <span className="ml-1 bg-amber-500/15 text-amber-400 text-xs font-bold px-2 py-0.5 rounded-full">{pendingPaymentsList.length}</span>
                             </h2>
-                            <div className="card p-4">
+                            <div className="bg-[#1a1d2e] rounded-xl border border-white/[0.06] shadow-lg p-4">
                                 <ul className="space-y-3">
                                     {pendingPaymentsList.map((payment) => {
                                         const isReceiver = user?.id === payment.receiverId;
                                         const isPayer = user?.id === payment.payerId;
                                         return (
-                                            <li key={payment.id} className={`rounded-xl p-4 border ${isReceiver ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}`}>
+                                            <li key={payment.id} className={`rounded-xl p-4 border ${isReceiver ? 'bg-amber-500/5 border-amber-500/15' : 'bg-white/[0.03] border-white/[0.04]'}`}>
                                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                                     <div className="flex-1">
-                                                        <p className="font-semibold text-slate-800 text-sm">
+                                                        <p className="font-semibold text-slate-200 text-sm">
                                                             {getMemberName(payment.payerId)}
                                                             <span className="font-normal text-slate-500"> paid </span>
                                                             {getMemberName(payment.receiverId)}
                                                         </p>
                                                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                                            {/* Payment Method Badge */}
                                                             {payment.paymentMethod === 'upi' ? (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-100 text-violet-700">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-500/15 text-violet-400">
                                                                     <Smartphone className="h-3 w-3" /> UPI
                                                                 </span>
                                                             ) : (
-                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-500/15 text-emerald-400">
                                                                     <Banknote className="h-3 w-3" /> Cash
                                                                 </span>
                                                             )}
-                                                            {/* Status Badge */}
-                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
+                                                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-400">
                                                                 <Clock className="h-3 w-3" /> PENDING
                                                             </span>
                                                             {payment.note && (
-                                                                <span className="text-xs text-slate-400 italic">"{payment.note}"</span>
+                                                                <span className="text-xs text-slate-500 italic">"{payment.note}"</span>
                                                             )}
-                                                            <span className="text-xs text-slate-400">
+                                                            <span className="text-xs text-slate-600">
                                                                 {new Date(payment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
                                                             </span>
                                                         </div>
                                                     </div>
                                                     <div className="flex items-center gap-3">
-                                                        <span className="font-bold text-slate-900 text-lg">₹{payment.amount.toFixed(2)}</span>
+                                                        <span className="font-bold text-white text-lg">₹{payment.amount.toFixed(2)}</span>
                                                         {isReceiver && (
-                                                            <button
-                                                                onClick={() => handleConfirmPayment(payment.id)}
+                                                            <button onClick={() => handleConfirmPayment(payment.id)}
                                                                 disabled={actionLoading === payment.id}
-                                                                className="px-4 py-2.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60 text-sm font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-sm whitespace-nowrap">
+                                                                className="px-4 py-2.5 bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-60 text-sm font-bold rounded-lg transition-colors flex items-center gap-1.5 shadow-lg shadow-emerald-500/15 whitespace-nowrap">
                                                                 {actionLoading === payment.id ? (
                                                                     <span className="animate-pulse">Confirming...</span>
                                                                 ) : (
@@ -323,7 +319,7 @@ const GroupDetails = () => {
                                                             </button>
                                                         )}
                                                         {isPayer && (
-                                                            <span className="text-xs text-amber-600 font-medium bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-md">
+                                                            <span className="text-xs text-amber-400 font-medium bg-amber-500/10 border border-amber-500/15 px-3 py-1.5 rounded-md">
                                                                 ⏳ Waiting for confirmation
                                                             </span>
                                                         )}
@@ -337,51 +333,49 @@ const GroupDetails = () => {
                         </div>
                     )}
 
-                    {/* ── PAYMENT HISTORY (all payments) ── */}
+                    {/* PAYMENT HISTORY */}
                     <div>
                         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                            <ShieldCheck className="h-4 w-4 text-emerald-400" />
                             Payment History
-                            {payments.length > 0 && <span className="text-xs font-normal text-slate-400">({verifiedPaymentsList.length} confirmed, {pendingPaymentsList.length} pending)</span>}
+                            {payments.length > 0 && <span className="text-xs font-normal text-slate-600">({verifiedPaymentsList.length} confirmed, {pendingPaymentsList.length} pending)</span>}
                         </h2>
-                        <div className="card p-4">
+                        <div className="bg-[#1a1d2e] rounded-xl border border-white/[0.06] shadow-lg p-4">
                             {payments.length === 0 ? (
-                                <p className="text-slate-400 text-center py-4 text-sm">No payments recorded yet. Use "Pay Now" in settlements above to get started.</p>
+                                <p className="text-slate-500 text-center py-4 text-sm">No payments recorded yet. Use "Pay Now" in settlements above to get started.</p>
                             ) : (
-                                <ul className="divide-y divide-slate-100">
+                                <ul className="divide-y divide-white/[0.04]">
                                     {payments.map((payment) => (
                                         <li key={payment.id} className="py-3.5 first:pt-0 last:pb-0">
                                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                                 <div className="flex-1">
-                                                    <p className="font-semibold text-slate-800 text-sm">
+                                                    <p className="font-semibold text-slate-200 text-sm">
                                                         {getMemberName(payment.payerId)}
                                                         <span className="font-normal text-slate-500"> → </span>
                                                         {getMemberName(payment.receiverId)}
                                                     </p>
                                                     <div className="flex items-center gap-2 mt-1 flex-wrap">
-                                                        {/* Method */}
                                                         {payment.paymentMethod === 'upi' ? (
-                                                            <span className="text-xs text-violet-600">📱 UPI</span>
+                                                            <span className="text-xs text-violet-400">📱 UPI</span>
                                                         ) : payment.paymentMethod === 'cash' ? (
-                                                            <span className="text-xs text-green-600">💵 Cash</span>
+                                                            <span className="text-xs text-emerald-400">💵 Cash</span>
                                                         ) : null}
-                                                        {/* Status */}
                                                         {payment.status === 'verified' ? (
-                                                            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600">
+                                                            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-400">
                                                                 <ShieldCheck className="h-3 w-3" /> Confirmed
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-600">
+                                                            <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-400">
                                                                 <Clock className="h-3 w-3" /> Pending
                                                             </span>
                                                         )}
-                                                        <span className="text-xs text-slate-400">
+                                                        <span className="text-xs text-slate-600">
                                                             {new Date(payment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                         </span>
-                                                        {payment.note && <span className="text-xs text-slate-400">· {payment.note}</span>}
+                                                        {payment.note && <span className="text-xs text-slate-600">· {payment.note}</span>}
                                                     </div>
                                                 </div>
-                                                <span className={`font-bold text-sm ${payment.status === 'verified' ? 'text-emerald-700' : 'text-slate-900'}`}>
+                                                <span className={`font-bold text-sm ${payment.status === 'verified' ? 'text-emerald-400' : 'text-white'}`}>
                                                     ₹{payment.amount.toFixed(2)}
                                                 </span>
                                             </div>
@@ -392,31 +386,31 @@ const GroupDetails = () => {
                         </div>
                     </div>
 
-                    {/* ── EXPENSES ── */}
+                    {/* EXPENSES */}
                     <div>
                         <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-                            <CreditCard className="h-4 w-4 text-indigo-500" />
+                            <CreditCard className="h-4 w-4 text-indigo-400" />
                             Expenses
                         </h2>
-                        <div className="card p-4">
+                        <div className="bg-[#1a1d2e] rounded-xl border border-white/[0.06] shadow-lg p-4">
                             {expenses.length === 0 ? (
-                                <p className="text-slate-400 text-center py-4 text-sm">No expenses recorded yet.</p>
+                                <p className="text-slate-500 text-center py-4 text-sm">No expenses recorded yet.</p>
                             ) : (
-                                <ul className="divide-y divide-slate-100">
+                                <ul className="divide-y divide-white/[0.04]">
                                     {expenses.map((expense) => (
                                         <li key={expense.id} className="py-3.5 first:pt-0 last:pb-0 flex justify-between items-start">
                                             <div>
-                                                <p className="font-semibold text-slate-900 text-sm">{expense.description}</p>
-                                                <p className="text-xs text-slate-400 mt-0.5">
-                                                    Paid by <span className="font-medium text-slate-600">{getMemberName(expense.paidBy)}</span> · {new Date(expense.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                <p className="font-semibold text-white text-sm">{expense.description}</p>
+                                                <p className="text-xs text-slate-500 mt-0.5">
+                                                    Paid by <span className="font-medium text-slate-400">{getMemberName(expense.paidBy)}</span> · {new Date(expense.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                                 </p>
                                                 {group?.members?.length > 0 && (
-                                                    <span className="mt-1.5 text-xs text-indigo-600 font-medium bg-indigo-50 inline-block px-2 py-0.5 rounded-md">
+                                                    <span className="mt-1.5 text-xs text-indigo-400 font-medium bg-indigo-500/10 inline-block px-2 py-0.5 rounded-md">
                                                         ₹{(expense.amount / group.members.length).toFixed(2)} / member
                                                     </span>
                                                 )}
                                             </div>
-                                            <span className="font-bold text-slate-900 text-sm ml-4 flex-shrink-0">₹{expense.amount.toFixed(2)}</span>
+                                            <span className="font-bold text-white text-sm ml-4 flex-shrink-0">₹{expense.amount.toFixed(2)}</span>
                                         </li>
                                     ))}
                                 </ul>
@@ -425,49 +419,49 @@ const GroupDetails = () => {
                     </div>
                 </main>
 
-                {/* ── PAYMENT METHOD MODAL ── */}
+                {/* PAYMENT METHOD MODAL */}
                 <ModalWrapper show={showPaymentModal} onClose={() => setShowPaymentModal(false)}>
                     <div className="flex items-center justify-between mb-5">
                         <div>
-                            <h3 className="text-base font-bold text-slate-900">Make Payment</h3>
+                            <h3 className="text-base font-bold text-white">Make Payment</h3>
                             {pendingPayment && (
-                                <p className="text-sm text-slate-500 mt-0.5">
-                                    ₹{pendingPayment.amount.toFixed(2)} to <span className="font-medium text-slate-700">{getMemberName(pendingPayment.receiverId)}</span>
+                                <p className="text-sm text-slate-400 mt-0.5">
+                                    ₹{pendingPayment.amount.toFixed(2)} to <span className="font-medium text-slate-300">{getMemberName(pendingPayment.receiverId)}</span>
                                 </p>
                             )}
                         </div>
-                        <button onClick={() => setShowPaymentModal(false)} className="p-1 rounded-lg hover:bg-slate-100">
-                            <X className="h-4 w-4 text-slate-400" />
+                        <button onClick={() => setShowPaymentModal(false)} className="p-1 rounded-lg hover:bg-white/[0.06]">
+                            <X className="h-4 w-4 text-slate-500" />
                         </button>
                     </div>
                     <form onSubmit={handleSubmitPayment}>
-                        <label className="block text-sm font-semibold mb-2 text-slate-700">How did you pay?</label>
+                        <label className="block text-sm font-semibold mb-2 text-slate-300">How did you pay?</label>
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <button type="button"
                                 onClick={() => setPaymentMethod('cash')}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'cash' ? 'border-green-500 bg-green-50 text-green-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'cash' ? 'border-emerald-500 bg-emerald-500/10 text-emerald-400 shadow-sm' : 'border-white/[0.06] bg-[#1a1d2e] text-slate-500 hover:border-white/[0.12]'}`}>
                                 <Banknote className="h-7 w-7" />
                                 <span className="text-sm font-bold">Cash</span>
                             </button>
                             <button type="button"
                                 onClick={() => setPaymentMethod('upi')}
-                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'upi' ? 'border-violet-500 bg-violet-50 text-violet-700 shadow-sm' : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'}`}>
+                                className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all ${paymentMethod === 'upi' ? 'border-violet-500 bg-violet-500/10 text-violet-400 shadow-sm' : 'border-white/[0.06] bg-[#1a1d2e] text-slate-500 hover:border-white/[0.12]'}`}>
                                 <Smartphone className="h-7 w-7" />
                                 <span className="text-sm font-bold">UPI</span>
                             </button>
                         </div>
-                        <label className="block text-sm font-semibold mb-1.5 text-slate-700">Note <span className="font-normal text-slate-400">(optional)</span></label>
+                        <label className="block text-sm font-semibold mb-1.5 text-slate-300">Note <span className="font-normal text-slate-600">(optional)</span></label>
                         <input type="text" className="input-field pl-4 mb-4" placeholder={paymentMethod === 'upi' ? 'e.g. UPI ref: 12345' : 'e.g. Gave cash at office'}
                             value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
 
-                        <div className="flex items-start gap-2 bg-blue-50 border border-blue-200 rounded-lg p-3 mb-5 text-xs text-blue-800">
-                            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+                        <div className="flex items-start gap-2 bg-indigo-500/10 border border-indigo-500/15 rounded-lg p-3 mb-5 text-xs text-indigo-300">
+                            <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-400" />
                             <p>After you mark as paid, <strong>{getMemberName(pendingPayment?.receiverId)}</strong> will see a <strong>"Confirm Receipt"</strong> button to verify they received the money.</p>
                         </div>
 
                         <div className="flex justify-end gap-2">
                             <button type="button" onClick={() => setShowPaymentModal(false)}
-                                className="px-4 py-2 font-medium text-slate-500 hover:bg-slate-100 rounded-lg text-sm transition-colors">Cancel</button>
+                                className="px-4 py-2 font-medium text-slate-400 hover:bg-white/[0.06] rounded-lg text-sm transition-colors">Cancel</button>
                             <button type="submit" disabled={actionLoading === 'submit-payment'}
                                 className="btn-primary text-sm py-2.5 px-5 flex items-center gap-2 disabled:opacity-60 font-bold">
                                 {actionLoading === 'submit-payment' ? (
@@ -486,21 +480,21 @@ const GroupDetails = () => {
                 {/* Expense Modal */}
                 <ModalWrapper show={showExpenseModal} onClose={() => setShowExpenseModal(false)}>
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-base font-bold text-slate-900">Add Expense</h3>
-                        <button onClick={() => setShowExpenseModal(false)} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
-                            <X className="h-4 w-4 text-slate-400" />
+                        <h3 className="text-base font-bold text-white">Add Expense</h3>
+                        <button onClick={() => setShowExpenseModal(false)} className="p-1 rounded-lg hover:bg-white/[0.06] transition-colors">
+                            <X className="h-4 w-4 text-slate-500" />
                         </button>
                     </div>
                     <form onSubmit={handleAddExpense}>
-                        <label className="block text-sm font-medium mb-1.5 text-slate-700">Description</label>
+                        <label className="block text-sm font-medium mb-1.5 text-slate-300">Description</label>
                         <input required type="text" className="input-field pl-4 mb-3" placeholder="e.g. Dinner"
                             value={expenseData.description} onChange={e => setExpenseData({ ...expenseData, description: e.target.value })} />
-                        <label className="block text-sm font-medium mb-1.5 text-slate-700">Amount (₹)</label>
+                        <label className="block text-sm font-medium mb-1.5 text-slate-300">Amount (₹)</label>
                         <input required type="number" step="0.01" className="input-field pl-4 mb-4" placeholder="1000.00"
                             value={expenseData.amount} onChange={e => setExpenseData({ ...expenseData, amount: e.target.value })} />
                         <div className="flex justify-end gap-2">
                             <button type="button" onClick={() => setShowExpenseModal(false)}
-                                className="px-4 py-2 font-medium text-slate-500 hover:bg-slate-100 rounded-lg text-sm transition-colors">Cancel</button>
+                                className="px-4 py-2 font-medium text-slate-400 hover:bg-white/[0.06] rounded-lg text-sm transition-colors">Cancel</button>
                             <button type="submit" className="btn-primary text-sm py-2">Save</button>
                         </div>
                     </form>
@@ -509,24 +503,24 @@ const GroupDetails = () => {
                 {/* Member Modal */}
                 <ModalWrapper show={showMemberModal} onClose={() => setShowMemberModal(false)}>
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-base font-bold text-slate-900">Add Member</h3>
-                        <button onClick={() => setShowMemberModal(false)} className="p-1 rounded-lg hover:bg-slate-100 transition-colors">
-                            <X className="h-4 w-4 text-slate-400" />
+                        <h3 className="text-base font-bold text-white">Add Member</h3>
+                        <button onClick={() => setShowMemberModal(false)} className="p-1 rounded-lg hover:bg-white/[0.06] transition-colors">
+                            <X className="h-4 w-4 text-slate-500" />
                         </button>
                     </div>
                     <form onSubmit={handleAddMember}>
-                        <label className="block text-sm font-medium mb-1.5 text-slate-700">Email address</label>
+                        <label className="block text-sm font-medium mb-1.5 text-slate-300">Email address</label>
                         <input required type="email" className="input-field pl-4 mb-4" placeholder="friend@example.com"
                             value={memberEmail} onChange={e => setMemberEmail(e.target.value)} />
                         <div className="flex justify-end gap-2">
                             <button type="button" onClick={() => setShowMemberModal(false)}
-                                className="px-4 py-2 font-medium text-slate-500 hover:bg-slate-100 rounded-lg text-sm transition-colors">Cancel</button>
+                                className="px-4 py-2 font-medium text-slate-400 hover:bg-white/[0.06] rounded-lg text-sm transition-colors">Cancel</button>
                             <button type="submit" className="btn-primary text-sm py-2">Add</button>
                         </div>
                     </form>
                 </ModalWrapper>
             </div>
-        </PageTransition >
+        </PageTransition>
     );
 };
 
