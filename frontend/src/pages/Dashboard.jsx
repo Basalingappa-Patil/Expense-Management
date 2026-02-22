@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown, Wallet, ChevronRight, X } from 'lucide-react';
+import { LogOut, PlusCircle, Users, Activity, TrendingUp, TrendingDown, Wallet, ChevronRight, X, BarChart3 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import api from '../utils/api';
 import PageTransition from '../components/PageTransition';
@@ -72,6 +72,11 @@ const Dashboard = () => {
                                 <span className="text-sm text-slate-500 hidden sm:block">
                                     Hi, <span className="font-medium text-slate-700">{user?.name}</span>
                                 </span>
+                                <Link to="/analytics"
+                                    className="flex items-center px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-sm font-medium rounded-lg text-indigo-600 hover:bg-indigo-100 transition-all duration-200">
+                                    <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                                    Analytics
+                                </Link>
                                 <button onClick={handleLogout}
                                     className="flex items-center px-3 py-1.5 border border-slate-200 text-sm font-medium rounded-lg text-slate-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition-all duration-200">
                                     <LogOut className="h-3.5 w-3.5 mr-1.5" />

@@ -6,6 +6,7 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import GroupDetails from './pages/GroupDetails';
+import Analytics from './pages/Analytics';
 
 const PrivateRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
@@ -37,6 +38,14 @@ function App() {
               </PrivateRoute>
             }
           />
+          <Route
+            path="/analytics"
+            element={
+              <PrivateRoute>
+                <Analytics />
+              </PrivateRoute>
+            }
+          />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </AnimatePresence>
@@ -45,3 +54,4 @@ function App() {
 }
 
 export default App;
+
