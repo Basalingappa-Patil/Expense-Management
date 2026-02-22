@@ -49,13 +49,15 @@ func InitiatePayment(c *gin.Context) {
 
 	paymentCollection := config.GetCollection("payments")
 	newPayment := models.Payment{
-		ID:         primitive.NewObjectID(),
-		GroupID:    groupID,
-		PayerID:    userID,
-		ReceiverID: receiverID,
-		Amount:     req.Amount,
-		Status:     "pending",
-		CreatedAt:  time.Now(),
+		ID:            primitive.NewObjectID(),
+		GroupID:       groupID,
+		PayerID:       userID,
+		ReceiverID:    receiverID,
+		Amount:        req.Amount,
+		PaymentMethod: req.PaymentMethod,
+		Note:          req.Note,
+		Status:        "pending",
+		CreatedAt:     time.Now(),
 	}
 
 	_, err = paymentCollection.InsertOne(ctx, newPayment)
