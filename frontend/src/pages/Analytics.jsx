@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
+import Navbar from '../components/Navbar';
 import {
     AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
     XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -231,7 +232,7 @@ const Analytics = () => {
     if (loading) {
         return (
             <PageTransition>
-                <div className="min-h-screen bg-slate-100 flex justify-center items-center">
+                <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50/30 flex justify-center items-center">
                     <div className="flex flex-col items-center gap-3">
                         <div className="w-8 h-8 border-3 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
                         <p className="text-slate-400 text-sm">Loading analytics...</p>
@@ -243,87 +244,57 @@ const Analytics = () => {
 
     return (
         <PageTransition>
-            <div className="min-h-screen bg-slate-100">
+            <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-indigo-50/30">
+                <Navbar />
 
-                {/* ─── Header ─── */}
-                <div className="bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-10 px-4 py-3 sm:px-6">
-                    <div className="max-w-6xl mx-auto">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <Link to="/dashboard" className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                                    <ArrowLeft className="h-5 w-5 text-slate-500" />
-                                </Link>
-                                <div>
-                                    <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                                        <BarChart3 className="h-5 w-5 text-indigo-600" /> Analytics
-                                    </h1>
-                                    <p className="text-xs text-slate-400">Your spending insights at a glance</p>
-                                </div>
-                            </div>
+                {/* ─── Filter Bar ─── */}
+                <div className="bg-white border-b border-slate-200/60 shadow-sm px-4 py-3 sm:px-6">
+                    <div className="max-w-6xl mx-auto flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                            {[
+                                { key: 'week', label: '7 Days' },
+                                { key: 'month', label: '30 Days' },
+                                { key: 'all', label: 'All Time' },
+                                { key: 'custom', label: 'Custom' },
+                            ].map(tab => (
+                                <button key={tab.key}
+                                    onClick={() => handlePeriod(tab.key)}
+                                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${period === tab.key
+                                        ? 'bg-white text-indigo-700 shadow-sm'
+                                        : 'text-slate-500 hover:text-slate-700'
+                                        }`}>
+                                    {tab.label}
+                                </button>
+                            ))}
                         </div>
 
-                        {/* ─── Filter Bar ─── */}
-                        <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-100">
-                            {/* Period Preset Buttons */}
-                            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-                                {[
-                                    { key: 'week', label: '7 Days' },
-                                    { key: 'month', label: '30 Days' },
-                                    { key: 'all', label: 'All Time' },
-                                    { key: 'custom', label: 'Custom' },
-                                ].map(tab => (
-                                    <button key={tab.key}
-                                        onClick={() => handlePeriod(tab.key)}
-                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${period === tab.key
-                                                ? 'bg-white text-indigo-700 shadow-sm'
-                                                : 'text-slate-500 hover:text-slate-700'
-                                            }`}>
-                                        {tab.label}
-                                    </button>
-                                ))}
-                            </div>
+                        {period === 'custom' && (
+                            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                                className="flex items-center gap-2 flex-wrap">
+                                <div className="flex items-center gap-1.5">
+                                    <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                    <label className="text-xs font-medium text-slate-500">From</label>
+                                    <input type="date" value={dateFrom} max={dateTo}
+                                        onChange={e => setDateFrom(e.target.value)}
+                                        className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all" />
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                    <label className="text-xs font-medium text-slate-500">To</label>
+                                    <input type="date" value={dateTo} min={dateFrom} max={toDateStr(new Date())}
+                                        onChange={e => setDateTo(e.target.value)}
+                                        className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all" />
+                                </div>
+                            </motion.div>
+                        )}
 
-                            {/* Date Range Picker — always visible when 'custom' is selected */}
-                            {period === 'custom' && (
-                                <motion.div
-                                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                                    className="flex items-center gap-2 flex-wrap"
-                                >
-                                    <div className="flex items-center gap-1.5">
-                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
-                                        <label className="text-xs font-medium text-slate-500">From</label>
-                                        <input
-                                            type="date"
-                                            value={dateFrom}
-                                            max={dateTo}
-                                            onChange={e => setDateFrom(e.target.value)}
-                                            className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <label className="text-xs font-medium text-slate-500">To</label>
-                                        <input
-                                            type="date"
-                                            value={dateTo}
-                                            min={dateFrom}
-                                            max={toDateStr(new Date())}
-                                            onChange={e => setDateTo(e.target.value)}
-                                            className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
-                                        />
-                                    </div>
-                                </motion.div>
-                            )}
-
-                            {/* Active filter indicator */}
-                            <div className="flex items-center gap-1.5 text-xs text-slate-400 ml-auto">
-                                <Filter className="h-3 w-3" />
-                                {period === 'week' && 'Last 7 days'}
-                                {period === 'month' && 'Last 30 days'}
-                                {period === 'all' && 'All time'}
-                                {period === 'custom' && `${dateFrom} → ${dateTo}`}
-                                <span className="text-slate-300">·</span>
-                                <span className="font-medium text-indigo-500">{filteredExpenses.length + filteredPayments.length} records</span>
-                            </div>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 ml-auto">
+                            <Filter className="h-3 w-3" />
+                            {period === 'week' && 'Last 7 days'}
+                            {period === 'month' && 'Last 30 days'}
+                            {period === 'all' && 'All time'}
+                            {period === 'custom' && `${dateFrom} → ${dateTo}`}
+                            <span className="text-slate-300">·</span>
+                            <span className="font-medium text-indigo-500">{filteredExpenses.length + filteredPayments.length} records</span>
                         </div>
                     </div>
                 </div>
@@ -506,10 +477,10 @@ const Analytics = () => {
                                             className="px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.type === 'expense'
-                                                        ? 'bg-indigo-50 text-indigo-600'
-                                                        : item.status === 'verified'
-                                                            ? 'bg-emerald-50 text-emerald-600'
-                                                            : 'bg-amber-50 text-amber-600'
+                                                    ? 'bg-indigo-50 text-indigo-600'
+                                                    : item.status === 'verified'
+                                                        ? 'bg-emerald-50 text-emerald-600'
+                                                        : 'bg-amber-50 text-amber-600'
                                                     }`}>
                                                     {item.type === 'expense'
                                                         ? <CreditCard className="h-4 w-4" />
@@ -527,10 +498,10 @@ const Analytics = () => {
                                                     </p>
                                                     <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
                                                         <span className={`font-medium px-1.5 py-0.5 rounded ${item.type === 'expense'
-                                                                ? 'bg-indigo-50 text-indigo-600'
-                                                                : item.status === 'verified'
-                                                                    ? 'bg-emerald-50 text-emerald-600'
-                                                                    : 'bg-amber-50 text-amber-600'
+                                                            ? 'bg-indigo-50 text-indigo-600'
+                                                            : item.status === 'verified'
+                                                                ? 'bg-emerald-50 text-emerald-600'
+                                                                : 'bg-amber-50 text-amber-600'
                                                             }`}>
                                                             {item.type === 'expense' ? 'Expense' : item.status === 'verified' ? 'Confirmed' : 'Pending'}
                                                         </span>
