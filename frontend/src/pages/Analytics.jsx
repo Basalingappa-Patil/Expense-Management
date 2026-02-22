@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useContext, useMemo } from 'react';
+import React, { useState, useEffect, useContext, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
 import { AuthContext } from '../context/AuthContext';
 import {
     ArrowLeft, TrendingUp, TrendingDown, Wallet, CreditCard,
     Banknote, Smartphone, Calendar, Clock, Activity, BarChart3,
-    PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight
+    PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, Filter
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import PageTransition from '../components/PageTransition';
@@ -17,29 +17,23 @@ import {
 /* ─── helpers ─── */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-
 const fmt = (n) => new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(n);
 
 const COLORS = {
-    indigo: '#6366f1',
-    violet: '#8b5cf6',
-    emerald: '#10b981',
-    amber: '#f59e0b',
-    rose: '#f43f5e',
-    sky: '#0ea5e9',
-    cash: '#10b981',
-    upi: '#8b5cf6',
+    indigo: '#6366f1', violet: '#8b5cf6', emerald: '#10b981',
+    amber: '#f59e0b', rose: '#f43f5e', sky: '#0ea5e9',
+    cash: '#10b981', upi: '#8b5cf6',
+};
+const GRADIENTS = {
+    indigo: ['#6366f1', '#818cf8'], emerald: ['#10b981', '#34d399'],
+    violet: ['#8b5cf6', '#a78bfa'], rose: ['#f43f5e', '#fb7185'],
 };
 
-const GRADIENTS = {
-    indigo: ['#6366f1', '#818cf8'],
-    emerald: ['#10b981', '#34d399'],
-    violet: ['#8b5cf6', '#a78bfa'],
-    rose: ['#f43f5e', '#fb7185'],
-};
+/* ─── format a Date to YYYY-MM-DD for input[type=date] ─── */
+const toDateStr = (d) => d.toISOString().split('T')[0];
 
 /* ─── custom tooltip ─── */
-const CustomTooltip = ({ active, payload, label, prefix = '₹' }) => {
+const CustomTooltip = ({ active, payload, label }) => {
     if (!active || !payload?.length) return null;
     return (
         <div className="bg-slate-900 text-white px-3 py-2 rounded-lg shadow-xl text-xs border border-slate-700">
@@ -48,7 +42,7 @@ const CustomTooltip = ({ active, payload, label, prefix = '₹' }) => {
                 <p key={i} className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
                     <span className="text-slate-400">{p.name}:</span>
-                    <span className="font-bold">{prefix}{fmt(p.value)}</span>
+                    <span className="font-bold">₹{fmt(p.value)}</span>
                 </p>
             ))}
         </div>
@@ -56,7 +50,7 @@ const CustomTooltip = ({ active, payload, label, prefix = '₹' }) => {
 };
 
 /* ─── stat card ─── */
-const StatCard = ({ title, value, subtitle, icon: Icon, gradient, delay = 0, trend }) => (
+const StatCard = ({ title, value, subtitle, icon: Icon, gradient, delay = 0 }) => (
     <motion.div
         initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ delay, duration: 0.4, ease: 'easeOut' }}
@@ -68,14 +62,7 @@ const StatCard = ({ title, value, subtitle, icon: Icon, gradient, delay = 0, tre
         </div>
         <p className="text-xs font-semibold uppercase tracking-wider text-white/70">{title}</p>
         <p className="text-2xl font-extrabold mt-1">₹{fmt(value)}</p>
-        <div className="flex items-center gap-1 mt-1">
-            {trend !== undefined && (
-                trend >= 0
-                    ? <ArrowUpRight className="h-3.5 w-3.5 text-white/80" />
-                    : <ArrowDownRight className="h-3.5 w-3.5 text-white/80" />
-            )}
-            <p className="text-xs text-white/60">{subtitle}</p>
-        </div>
+        <p className="text-xs text-white/60 mt-1">{subtitle}</p>
     </motion.div>
 );
 
@@ -101,7 +88,12 @@ const Analytics = () => {
     const [expenses, setExpenses] = useState([]);
     const [payments, setPayments] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [period, setPeriod] = useState('month'); // week | month | all
+
+    // ─── Filter state ───
+    const [period, setPeriod] = useState('all'); // week | month | all | custom
+    const now = new Date();
+    const [dateFrom, setDateFrom] = useState(toDateStr(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())));
+    const [dateTo, setDateTo] = useState(toDateStr(now));
 
     useEffect(() => {
         const fetchAnalytics = async () => {
@@ -118,23 +110,48 @@ const Analytics = () => {
         fetchAnalytics();
     }, []);
 
-    /* ─── date filtering ─── */
-    const now = new Date();
+    /* ─── compute cutoff dates from period ─── */
+    const getDateRange = useCallback(() => {
+        const end = new Date();
+        end.setHours(23, 59, 59, 999);
+
+        if (period === 'week') {
+            const start = new Date(end);
+            start.setDate(start.getDate() - 7);
+            start.setHours(0, 0, 0, 0);
+            return { start, end };
+        }
+        if (period === 'month') {
+            const start = new Date(end);
+            start.setMonth(start.getMonth() - 1);
+            start.setHours(0, 0, 0, 0);
+            return { start, end };
+        }
+        if (period === 'custom') {
+            const start = new Date(dateFrom + 'T00:00:00');
+            const customEnd = new Date(dateTo + 'T23:59:59.999');
+            return { start, end: customEnd };
+        }
+        // 'all' — return extreme range
+        return { start: new Date(2000, 0, 1), end };
+    }, [period, dateFrom, dateTo]);
+
+    /* ─── filtered data ─── */
     const filteredExpenses = useMemo(() => {
-        if (period === 'all') return expenses;
-        const cutoff = new Date(now);
-        if (period === 'week') cutoff.setDate(cutoff.getDate() - 7);
-        else cutoff.setMonth(cutoff.getMonth() - 1);
-        return expenses.filter(e => new Date(e.createdAt) >= cutoff);
-    }, [expenses, period]);
+        const { start, end } = getDateRange();
+        return expenses.filter(e => {
+            const d = new Date(e.createdAt);
+            return d >= start && d <= end;
+        });
+    }, [expenses, getDateRange]);
 
     const filteredPayments = useMemo(() => {
-        if (period === 'all') return payments;
-        const cutoff = new Date(now);
-        if (period === 'week') cutoff.setDate(cutoff.getDate() - 7);
-        else cutoff.setMonth(cutoff.getMonth() - 1);
-        return payments.filter(p => new Date(p.createdAt) >= cutoff);
-    }, [payments, period]);
+        const { start, end } = getDateRange();
+        return payments.filter(p => {
+            const d = new Date(p.createdAt);
+            return d >= start && d <= end;
+        });
+    }, [payments, getDateRange]);
 
     /* ─── KPI stats ─── */
     const totalExpenses = filteredExpenses.reduce((s, e) => s + e.amount, 0);
@@ -144,14 +161,14 @@ const Analytics = () => {
     const cashPayments = filteredPayments.filter(p => p.paymentMethod === 'cash');
     const upiPayments = filteredPayments.filter(p => p.paymentMethod === 'upi');
 
-    /* ─── monthly area chart data (last 6 months) ─── */
+    /* ─── monthly area chart data (last 6 months, always) ─── */
     const monthlyData = useMemo(() => {
         const data = [];
         for (let i = 5; i >= 0; i--) {
             const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const month = d.getMonth();
             const year = d.getFullYear();
-            const label = `${MONTHS[month]} ${year.toString().slice(2)}`;
+            const label = `${MONTHS[month]} '${year.toString().slice(2)}`;
 
             const expTotal = expenses
                 .filter(e => { const dt = new Date(e.createdAt); return dt.getMonth() === month && dt.getFullYear() === year; })
@@ -174,7 +191,7 @@ const Analytics = () => {
             d.setDate(d.getDate() - i);
             const dayStart = new Date(d.getFullYear(), d.getMonth(), d.getDate());
             const dayEnd = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
-            const label = i === 0 ? 'Today' : i === 1 ? 'Yesterday' : DAYS[d.getDay()];
+            const label = i === 0 ? 'Today' : i === 1 ? 'Yest.' : DAYS[d.getDay()];
 
             const total = expenses
                 .filter(e => { const dt = new Date(e.createdAt); return dt >= dayStart && dt < dayEnd; })
@@ -189,15 +206,13 @@ const Analytics = () => {
     const methodData = useMemo(() => {
         const cashAmt = filteredPayments.filter(p => p.paymentMethod === 'cash').reduce((s, p) => s + p.amount, 0);
         const upiAmt = filteredPayments.filter(p => p.paymentMethod === 'upi').reduce((s, p) => s + p.amount, 0);
-        const otherAmt = filteredPayments.filter(p => p.paymentMethod !== 'cash' && p.paymentMethod !== 'upi').reduce((s, p) => s + p.amount, 0);
         const result = [];
         if (cashAmt > 0) result.push({ name: 'Cash', value: cashAmt, color: COLORS.cash });
         if (upiAmt > 0) result.push({ name: 'UPI', value: upiAmt, color: COLORS.upi });
-        if (otherAmt > 0) result.push({ name: 'Other', value: otherAmt, color: COLORS.amber });
         return result;
     }, [filteredPayments]);
 
-    /* ─── recent activity (combined + sorted) ─── */
+    /* ─── recent activity ─── */
     const recentActivity = useMemo(() => {
         const items = [
             ...filteredExpenses.map(e => ({ type: 'expense', ...e })),
@@ -206,6 +221,11 @@ const Analytics = () => {
         items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         return items.slice(0, 12);
     }, [filteredExpenses, filteredPayments]);
+
+    /* ─── handle preset period click ─── */
+    const handlePeriod = (key) => {
+        setPeriod(key);
+    };
 
     /* ═══ RENDER ═══ */
     if (loading) {
@@ -227,34 +247,83 @@ const Analytics = () => {
 
                 {/* ─── Header ─── */}
                 <div className="bg-white border-b border-slate-200/60 shadow-sm sticky top-0 z-10 px-4 py-3 sm:px-6">
-                    <div className="max-w-6xl mx-auto flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Link to="/dashboard" className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-                                <ArrowLeft className="h-5 w-5 text-slate-500" />
-                            </Link>
-                            <div>
-                                <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                                    <BarChart3 className="h-5 w-5 text-indigo-600" /> Analytics
-                                </h1>
-                                <p className="text-xs text-slate-400">Your spending insights at a glance</p>
+                    <div className="max-w-6xl mx-auto">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Link to="/dashboard" className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                                    <ArrowLeft className="h-5 w-5 text-slate-500" />
+                                </Link>
+                                <div>
+                                    <h1 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                                        <BarChart3 className="h-5 w-5 text-indigo-600" /> Analytics
+                                    </h1>
+                                    <p className="text-xs text-slate-400">Your spending insights at a glance</p>
+                                </div>
                             </div>
                         </div>
-                        {/* Period Selector */}
-                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-                            {[
-                                { key: 'week', label: '7 Days' },
-                                { key: 'month', label: '30 Days' },
-                                { key: 'all', label: 'All Time' },
-                            ].map(tab => (
-                                <button key={tab.key}
-                                    onClick={() => setPeriod(tab.key)}
-                                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${period === tab.key
-                                            ? 'bg-white text-indigo-700 shadow-sm'
-                                            : 'text-slate-500 hover:text-slate-700'
-                                        }`}>
-                                    {tab.label}
-                                </button>
-                            ))}
+
+                        {/* ─── Filter Bar ─── */}
+                        <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+                            {/* Period Preset Buttons */}
+                            <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                                {[
+                                    { key: 'week', label: '7 Days' },
+                                    { key: 'month', label: '30 Days' },
+                                    { key: 'all', label: 'All Time' },
+                                    { key: 'custom', label: 'Custom' },
+                                ].map(tab => (
+                                    <button key={tab.key}
+                                        onClick={() => handlePeriod(tab.key)}
+                                        className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${period === tab.key
+                                                ? 'bg-white text-indigo-700 shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700'
+                                            }`}>
+                                        {tab.label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* Date Range Picker — always visible when 'custom' is selected */}
+                            {period === 'custom' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                                    className="flex items-center gap-2 flex-wrap"
+                                >
+                                    <div className="flex items-center gap-1.5">
+                                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                                        <label className="text-xs font-medium text-slate-500">From</label>
+                                        <input
+                                            type="date"
+                                            value={dateFrom}
+                                            max={dateTo}
+                                            onChange={e => setDateFrom(e.target.value)}
+                                            className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <label className="text-xs font-medium text-slate-500">To</label>
+                                        <input
+                                            type="date"
+                                            value={dateTo}
+                                            min={dateFrom}
+                                            max={toDateStr(new Date())}
+                                            onChange={e => setDateTo(e.target.value)}
+                                            className="px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-indigo-400 transition-all"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+
+                            {/* Active filter indicator */}
+                            <div className="flex items-center gap-1.5 text-xs text-slate-400 ml-auto">
+                                <Filter className="h-3 w-3" />
+                                {period === 'week' && 'Last 7 days'}
+                                {period === 'month' && 'Last 30 days'}
+                                {period === 'all' && 'All time'}
+                                {period === 'custom' && `${dateFrom} → ${dateTo}`}
+                                <span className="text-slate-300">·</span>
+                                <span className="font-medium text-indigo-500">{filteredExpenses.length + filteredPayments.length} records</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -279,7 +348,6 @@ const Analytics = () => {
 
                     {/* ─── Row: Monthly Overview + Payment Methods ─── */}
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                        {/* Monthly Area Chart */}
                         <ChartCard title="Monthly Overview" icon={Activity} delay={0.2} className="lg:col-span-2">
                             {monthlyData.some(d => d.expenses > 0 || d.payments > 0) ? (
                                 <ResponsiveContainer width="100%" height={260}>
@@ -308,7 +376,6 @@ const Analytics = () => {
                             )}
                         </ChartCard>
 
-                        {/* Payment Method Donut */}
                         <ChartCard title="Payment Methods" icon={PieChartIcon} delay={0.3}>
                             {methodData.length > 0 ? (
                                 <div className="flex flex-col items-center">
@@ -341,7 +408,6 @@ const Analytics = () => {
 
                     {/* ─── Row: Weekly Spending + Expense vs Payment Comparison ─── */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        {/* Weekly Bar Chart */}
                         <ChartCard title="Weekly Spending" icon={Calendar} delay={0.35}>
                             {weeklyData.some(d => d.amount > 0) ? (
                                 <ResponsiveContainer width="100%" height={220}>
@@ -362,7 +428,6 @@ const Analytics = () => {
                             )}
                         </ChartCard>
 
-                        {/* Expense vs Payment Comparison */}
                         <ChartCard title="Expenses vs Payments" icon={BarChart3} delay={0.4}>
                             {monthlyData.some(d => d.expenses > 0 || d.payments > 0) ? (
                                 <ResponsiveContainer width="100%" height={220}>
@@ -382,7 +447,7 @@ const Analytics = () => {
                         </ChartCard>
                     </div>
 
-                    {/* ─── Cash / UPI Stats Row ─── */}
+                    {/* ─── Cash / UPI Stats ─── */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
                             className="card p-5 flex items-center gap-4">
@@ -414,11 +479,11 @@ const Analytics = () => {
                                 <Activity className="h-6 w-6 text-amber-600" />
                             </div>
                             <div>
-                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Groups</p>
+                                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Groups</p>
                                 <p className="text-xl font-extrabold text-slate-900">
                                     {new Set([...filteredExpenses.map(e => e.groupId), ...filteredPayments.map(p => p.groupId)]).size}
                                 </p>
-                                <p className="text-xs text-slate-400">Active groups with transactions</p>
+                                <p className="text-xs text-slate-400">Groups with transactions</p>
                             </div>
                         </motion.div>
                     </div>
@@ -431,13 +496,13 @@ const Analytics = () => {
                         </h3>
                         <div className="card overflow-hidden">
                             {recentActivity.length === 0 ? (
-                                <div className="p-8 text-center text-slate-400 text-sm">No recent activity for this period</div>
+                                <div className="p-8 text-center text-slate-400 text-sm">No activity for this period</div>
                             ) : (
                                 <ul className="divide-y divide-slate-100">
                                     {recentActivity.map((item, i) => (
                                         <motion.li key={item.id + item.type}
                                             initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
-                                            transition={{ delay: 0.55 + i * 0.04 }}
+                                            transition={{ delay: 0.55 + i * 0.03 }}
                                             className="px-5 py-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${item.type === 'expense'
@@ -460,7 +525,7 @@ const Analytics = () => {
                                                             : `${item.payerName} → ${item.receiverName}`
                                                         }
                                                     </p>
-                                                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                                                    <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5 flex-wrap">
                                                         <span className={`font-medium px-1.5 py-0.5 rounded ${item.type === 'expense'
                                                                 ? 'bg-indigo-50 text-indigo-600'
                                                                 : item.status === 'verified'
@@ -471,11 +536,11 @@ const Analytics = () => {
                                                         </span>
                                                         <span>{item.groupName}</span>
                                                         <span>·</span>
-                                                        <span>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+                                                        <span>{new Date(item.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                                     </div>
                                                 </div>
                                             </div>
-                                            <span className={`text-sm font-bold flex-shrink-0 ${item.type === 'expense' ? 'text-slate-900' : 'text-emerald-600'
+                                            <span className={`text-sm font-bold flex-shrink-0 ml-3 ${item.type === 'expense' ? 'text-slate-900' : 'text-emerald-600'
                                                 }`}>
                                                 {item.type === 'expense' ? '-' : '+'}₹{fmt(item.amount)}
                                             </span>

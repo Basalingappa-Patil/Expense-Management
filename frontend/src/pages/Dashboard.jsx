@@ -11,9 +11,8 @@ const Dashboard = () => {
     const navigate = useNavigate();
     const [groups, setGroups] = useState([]);
     const [loading, setLoading] = useState(true);
-
-    const totalOwed = 0;
-    const totalYouOwe = 0;
+    const [totalOwed, setTotalOwed] = useState(0);
+    const [totalYouOwe, setTotalYouOwe] = useState(0);
 
     const [showCreateGroupModal, setShowCreateGroupModal] = useState(false);
     const [newGroupName, setNewGroupName] = useState('');
@@ -25,25 +24,52 @@ const Dashboard = () => {
             await api.post('/groups', { name: newGroupName });
             setShowCreateGroupModal(false);
             setNewGroupName('');
-            const res = await api.get('/groups');
-            setGroups(res.data || []);
+            fetchDashboardData();
         } catch (err) {
             console.error(err);
             alert("Failed to create group");
         }
     };
 
+    const fetchDashboardData = async () => {
+        try {
+            const res = await api.get('/groups');
+            const fetchedGroups = res.data || [];
+            setGroups(fetchedGroups);
+
+            // Fetch settlements for all groups to compute real balances
+            let owed = 0;
+            let youOwe = 0;
+            await Promise.all(
+                fetchedGroups.map(async (group) => {
+                    try {
+                        const settleRes = await api.get(`/settlements/${group.id}`);
+                        const transactions = settleRes.data?.transactions || [];
+                        transactions.forEach((t) => {
+                            if (t.toUser === user?.id) {
+                                // Someone owes the current user
+                                owed += t.amount;
+                            }
+                            if (t.fromUser === user?.id) {
+                                // Current user owes someone
+                                youOwe += t.amount;
+                            }
+                        });
+                    } catch (err) {
+                        console.error(`Failed to fetch settlements for group ${group.id}`, err);
+                    }
+                })
+            );
+            setTotalOwed(owed);
+            setTotalYouOwe(youOwe);
+        } catch (err) {
+            console.error("Failed to load dashboard data", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchDashboardData = async () => {
-            try {
-                const res = await api.get('/groups');
-                setGroups(res.data || []);
-            } catch (err) {
-                console.error("Failed to load dashboard data", err);
-            } finally {
-                setLoading(false);
-            }
-        };
         fetchDashboardData();
     }, []);
 
